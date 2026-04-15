@@ -3,84 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AICodeMate 团队资料库</title>
+    <title>AICodeMate | AI Core</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #0d1117; color: #c9d1d9; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .container { max-width: 600px; width: 90%; background: #161b22; padding: 40px; border-radius: 12px; border: 1px solid #30363d; box-shadow: 0 8px 24px rgba(0,0,0,0.5); text-align: center; }
-        h1 { color: #58a6ff; margin-bottom: 10px; font-size: 28px; }
-        .subtitle { color: #8b949e; margin-bottom: 30px; font-size: 16px; }
-        .members-list { text-align: left; display: grid; gap: 10px; margin-bottom: 20px; }
-        .member-card { background: #0d1117; padding: 15px 20px; border-radius: 8px; border: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; cursor: pointer; text-decoration: none; color: inherit; }
-        .member-card:hover { border-color: #58a6ff; transform: translateX(5px); }
-        .member-card .name { font-weight: bold; font-size: 18px; color: #7ee787; }
-        .member-card .arrow { font-size: 20px; color: #58a6ff; }
-        .footer { margin-top: 30px; font-size: 12px; color: #484f58; }
-        .tag { font-size: 10px; background: #238636; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+        :root { --primary: #00f3ff; --bg: #050505; --glass: rgba(10, 15, 30, 0.6); }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: #fff; font-family: 'Courier New', Courier, monospace; overflow: hidden; height: 100vh; width: 100vw; }
+        
+        /* Canvas Background */
+        #bgCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+
+        /* Main Overlay */
+        .container {
+            position: relative; z-index: 1; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; height: 100vh;
+            text-align: center; padding: 20px;
+            background: radial-gradient(circle at center, rgba(0, 243, 255, 0.05) 0%, var(--bg) 70%);
+        }
+
+        /* HUD Borders */
+        .hud-frame {
+            position: absolute; top: 30px; left: 30px; right: 30px; bottom: 30px;
+            border: 1px solid rgba(0, 243, 255, 0.15); pointer-events: none;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.05);
+        }
+        .hud-corner {
+            position: absolute; width: 30px; height: 30px; border-color: var(--primary); border-style: solid;
+        }
+        .tl { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+        .tr { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
+        .bl { bottom: -1px; left: -1px; border-width: 0 0 2px 2px; }
+        .br { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+        /* Typography */
+        h1 {
+            font-size: 4rem; letter-spacing: 8px; margin-bottom: 15px;
+            text-shadow: 0 0 20px var(--primary), 0 0 40px rgba(0, 243, 255, 0.5);
+            animation: pulse 4s infinite;
+            font-family: 'Arial Black', Impact, sans-serif;
+            text-transform: uppercase;
+        }
+        .slogan {
+            font-size: 1.2rem; color: #ccc; letter-spacing: 3px; margin-bottom: 50px;
+            border-left: 4px solid var(--primary); padding-left: 20px;
+            text-shadow: 0 0 5px rgba(255,255,255,0.5);
+            font-weight: bold;
+        }
+        .status-bar { 
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            font-size: 0.8rem; color: var(--primary); opacity: 0.6; letter-spacing: 2px;
+        }
+
+        /* Grid of Nodes */
+        .nodes-grid {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 25px;
+            max-width: 1200px; width: 90%; z-index: 2;
+        }
+        .node-card {
+            background: var(--glass); border: 1px solid rgba(0, 243, 255, 0.3);
+            padding: 25px 50px; min-width: 220px; cursor: pointer;
+            transition: all 0.3s ease; position: relative; overflow: hidden;
+            backdrop-filter: blur(8px); 
+            clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+        }
+        .node-card:hover {
+            background: rgba(0, 243, 255, 0.15); border-color: var(--primary);
+            transform: scale(1.05) translateY(-5px); 
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.5), inset 0 0 20px rgba(0, 243, 255, 0.2);
+        }
+        .node-card h3 { font-size: 1.4rem; margin-bottom: 8px; letter-spacing: 2px; }
+        .node-card span { font-size: 0.8rem; color: #888; font-family: monospace; }
+        
+        .loader { color: var(--primary); animation: blink 1s infinite; font-size: 1.2rem; }
+
+        @keyframes pulse { 0% { text-shadow: 0 0 20px var(--primary); } 50% { text-shadow: 0 0 40px var(--primary), 0 0 80px var(--primary); } 100% { text-shadow: 0 0 20px var(--primary); } }
+        @keyframes blink { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
+    <canvas id="bgCanvas"></canvas>
     <div class="container">
-        <h1>🚀 AICodeMate</h1>
-        <p class="subtitle">团队共享资料库 & 成果展示<br>建议上传 PDF 格式以支持在线预览</p>
-        
-        <div id="list" class="members-list">
-            <div class="loading" style="text-align:center; color:#8b949e;">加载中...</div>
+        <div class="hud-frame">
+            <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+            <div class="hud-corner bl"></div><div class="hud-corner br"></div>
         </div>
 
-        <div class="footer">
-            Powered by GitHub & Wangcai
+        <div style="margin-bottom: 20px; color: #666; font-size: 0.9rem; letter-spacing: 2px;">SYSTEM STATUS: ONLINE // NODE: SHENZHEN_CORE</div>
+
+        <h1>AICodeMate</h1>
+        <div class="slogan">致力于成为医疗领域最智能的AI编程伙伴</div>
+
+        <div class="nodes-grid" id="nodes">
+            <div class="loader">>> INITIALIZING MEMBER NODES...</div>
+        </div>
+        
+        <div class="status-bar">
+            SECURE CONNECTION ESTABLISHED | v1.0.0 | POWERED BY WANGCAI
         </div>
     </div>
 
     <script>
-        const OWNER = 'tophpc';
-        const REPO = 'mate';
-        const BRANCH = 'main';
-        const BASE_GITHUB = `https://github.com/${OWNER}/${REPO}/tree/${BRANCH}/members/`;
-
-        async function loadMembers() {
-            const listEl = document.getElementById('list');
-            try {
-                // 使用 GitHub API 获取 members 目录
-                // 注意：公开仓库未认证 API 限制 60 次/小时
-                const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/members`);
-                if (res.status === 403) throw new Error("API 访问受限，请稍后重试");
-                if (!res.ok) throw new Error("获取目录失败");
-
-                const data = await res.json();
-                // 过滤出文件夹，排除隐藏文件和 template
-                const folders = data.filter(item => item.type === 'dir' && !item.name.startsWith('.'));
-
-                if (folders.length === 0) {
-                    listEl.innerHTML = '<div style="text-align:center; color:#8b949e;">暂无成员文件夹</div>';
-                    return;
-                }
-
-                listEl.innerHTML = '';
-                folders.forEach(folder => {
-                    const a = document.createElement('a');
-                    a.className = 'member-card';
-                    a.href = BASE_GITHUB + folder.name;
-                    a.target = '_blank';
-                    a.innerHTML = `
-                        <span class="name">${folder.name} <span class="tag">Folder</span></span>
-                        <span class="arrow">→</span>
-                    `;
-                    listEl.appendChild(a);
-                });
-
-            } catch (e) {
-                // 如果 API 挂了，直接显示仓库主页链接
-                listEl.innerHTML = `
-                    <div style="text-align:center; color:#f85149; margin-bottom:10px;">加载失败：${e.message}</div>
-                    <a class="member-card" href="https://github.com/${OWNER}/${REPO}/tree/${BRANCH}/members" target="_blank">
-                        <span class="name">查看完整仓库目录 →</span>
-                    </a>
-                `;
-            }
+        // 1. Particle Background
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        let particles = [];
+        for(let i=0; i<80; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.8,
+                vy: (Math.random() - 0.5) * 0.8,
+                size: Math.random() * 2 + 1
+            });
         }
 
-        loadMembers();
+        function drawBg() {
+            ctx.clearRect(0,0,canvas.width, canvas.height);
+            ctx.fillStyle = '#00f3ff';
+            ctx.strokeStyle = 'rgba(0, 243, 255, 0.12)';
+            
+            particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy;
+                if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                ctx.fill();
+
+                particles.forEach((p2, j) => {
+                    if(i === j) return;
+                    const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+                    if(dist < 160) {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.lineWidth = 1 - dist/160;
+                        ctx.stroke();
+                    }
+                });
+            });
+            requestAnimationFrame(drawBg);
+        }
+        drawBg();
+        window.addEventListener('resize', () => { canvas.width = innerWidth; canvas.height = innerHeight; });
+
+        // 2. Fetch Members
+        const OWNER = 'tophpc';
+        const REPO = 'mate';
+        const BASE = `https://github.com/${OWNER}/${REPO}/tree/main/members/`;
+
+        fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/members`)
+            .then(res => res.json())
+            .then(data => {
+                const nodesDiv = document.getElementById('nodes');
+                nodesDiv.innerHTML = '';
+                const folders = data.filter(i => i.type === 'dir' && !i.name.startsWith('.'));
+                
+                if(folders.length === 0) {
+                    nodesDiv.innerHTML = '<div style="color:#888">NO ACTIVE NODES DETECTED</div>';
+                }
+
+                folders.forEach(f => {
+                    const card = document.createElement('a');
+                    card.href = BASE + f.name;
+                    card.className = 'node-card';
+                    card.innerHTML = `<h3>${f.name.toUpperCase()}</h3><span>[ ACCESS NODE ]</span>`;
+                    nodesDiv.appendChild(card);
+                });
+            })
+            .catch(e => {
+                document.getElementById('nodes').innerHTML = `<div style="color:#ff4444; border:1px solid red; padding:20px;">SYSTEM ERROR: ${e.message}</div>`;
+            });
     </script>
 </body>
 </html>
