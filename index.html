@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AICodeMate 团队资料库</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #0d1117; color: #c9d1d9; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { max-width: 600px; width: 90%; background: #161b22; padding: 40px; border-radius: 12px; border: 1px solid #30363d; box-shadow: 0 8px 24px rgba(0,0,0,0.5); text-align: center; }
+        h1 { color: #58a6ff; margin-bottom: 10px; font-size: 28px; }
+        .subtitle { color: #8b949e; margin-bottom: 30px; font-size: 16px; }
+        .members-list { text-align: left; display: grid; gap: 10px; margin-bottom: 20px; }
+        .member-card { background: #0d1117; padding: 15px 20px; border-radius: 8px; border: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; cursor: pointer; text-decoration: none; color: inherit; }
+        .member-card:hover { border-color: #58a6ff; transform: translateX(5px); }
+        .member-card .name { font-weight: bold; font-size: 18px; color: #7ee787; }
+        .member-card .arrow { font-size: 20px; color: #58a6ff; }
+        .footer { margin-top: 30px; font-size: 12px; color: #484f58; }
+        .tag { font-size: 10px; background: #238636; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 AICodeMate</h1>
+        <p class="subtitle">团队共享资料库 & 成果展示<br>建议上传 PDF 格式以支持在线预览</p>
+        
+        <div id="list" class="members-list">
+            <div class="loading" style="text-align:center; color:#8b949e;">加载中...</div>
+        </div>
+
+        <div class="footer">
+            Powered by GitHub & Wangcai
+        </div>
+    </div>
+
+    <script>
+        const OWNER = 'tophpc';
+        const REPO = 'aicodemate';
+        const BRANCH = 'main';
+        const BASE_GITHUB = `https://github.com/${OWNER}/${REPO}/tree/${BRANCH}/members/`;
+
+        async function loadMembers() {
+            const listEl = document.getElementById('list');
+            try {
+                // 使用 GitHub API 获取 members 目录
+                // 注意：公开仓库未认证 API 限制 60 次/小时
+                const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/members`);
+                if (res.status === 403) throw new Error("API 访问受限，请稍后重试");
+                if (!res.ok) throw new Error("获取目录失败");
+
+                const data = await res.json();
+                // 过滤出文件夹，排除隐藏文件和 template
+                const folders = data.filter(item => item.type === 'dir' && !item.name.startsWith('.'));
+
+                if (folders.length === 0) {
+                    listEl.innerHTML = '<div style="text-align:center; color:#8b949e;">暂无成员文件夹</div>';
+                    return;
+                }
+
+                listEl.innerHTML = '';
+                folders.forEach(folder => {
+                    const a = document.createElement('a');
+                    a.className = 'member-card';
+                    a.href = BASE_GITHUB + folder.name;
+                    a.target = '_blank';
+                    a.innerHTML = `
+                        <span class="name">${folder.name} <span class="tag">Folder</span></span>
+                        <span class="arrow">→</span>
+                    `;
+                    listEl.appendChild(a);
+                });
+
+            } catch (e) {
+                // 如果 API 挂了，直接显示仓库主页链接
+                listEl.innerHTML = `
+                    <div style="text-align:center; color:#f85149; margin-bottom:10px;">加载失败：${e.message}</div>
+                    <a class="member-card" href="https://github.com/${OWNER}/${REPO}/tree/${BRANCH}/members" target="_blank">
+                        <span class="name">查看完整仓库目录 →</span>
+                    </a>
+                `;
+            }
+        }
+
+        loadMembers();
+    </script>
+</body>
+</html>
