@@ -67,7 +67,8 @@ class AddEditUserActivity : AppCompatActivity() {
         val user = dbHelper.getUserById(editUserId) ?: return
 
         etUsername.setText(user.username)
-        etPassword.setText(user.password)
+        // 编辑时不预填密码，留空表示不修改
+        etPassword.hint = "留空则不修改密码"
         etDisplayName.setText(user.displayName)
         etEmail.setText(user.email)
         etPhone.setText(user.phone)
@@ -93,12 +94,13 @@ class AddEditUserActivity : AppCompatActivity() {
             etUsername.requestFocus()
             return
         }
-        if (password.isEmpty()) {
+        // 新增用户必须填密码，编辑用户可留空（不修改密码）
+        if (!isEditMode && password.isEmpty()) {
             etPassword.error = "请输入密码"
             etPassword.requestFocus()
             return
         }
-        if (password.length < 6) {
+        if (password.isNotEmpty() && password.length < 6) {
             etPassword.error = "密码至少6位"
             etPassword.requestFocus()
             return
@@ -116,26 +118,50 @@ class AddEditUserActivity : AppCompatActivity() {
             return
         }
 
-        val user = User(
-            id = if (isEditMode) editUserId else 0,
-            username = username,
-            password = password,
-            displayName = displayName,
-            email = email,
-            phone = phone,
-            role = role,
-            isActive = isActive,
-            createdAt = if (isEditMode) {
-                dbHelper.getUserById(editUserId)?.createdAt ?: System.currentTimeMillis()
-            } else {
-                System.currentTimeMillis()
-            }
-        )
-
         if (isEditMode) {
-            dbHelper.updateUser(user)
+            val existingUser = dbHelper.getUserById(editUserId)
+            if (password.isNotEmpty()) {
+                // 密码有变更，更新所有字段（密码会被哈希）
+                val user = User(
+                    id = editUserId,
+                    username = username,
+                    password = password,
+                    displayName = displayName,
+                    email = email,
+                    phone = phone,
+                    role = role,
+                    isActive = isActive,
+                    createdAt = existingUser?.createdAt ?: System.currentTimeMillis()
+                )
+                dbHelper.updateUser(user)
+            } else {
+                // 密码未变更，不更改密码字段
+                val user = User(
+                    id = editUserId,
+                    username = username,
+                    password = "",
+                    displayName = displayName,
+                    email = email,
+                    phone = phone,
+                    role = role,
+                    isActive = isActive,
+                    createdAt = existingUser?.createdAt ?: System.currentTimeMillis()
+                )
+                dbHelper.updateUserWithoutPassword(user)
+            }
             Toast.makeText(this, "用户信息已更新", Toast.LENGTH_SHORT).show()
         } else {
+            val user = User(
+                id = 0,
+                username = username,
+                password = password,
+                displayName = displayName,
+                email = email,
+                phone = phone,
+                role = role,
+                isActive = isActive,
+                createdAt = System.currentTimeMillis()
+            )
             val newId = dbHelper.addUser(user)
             if (newId > 0) {
                 Toast.makeText(this, "用户添加成功", Toast.LENGTH_SHORT).show()

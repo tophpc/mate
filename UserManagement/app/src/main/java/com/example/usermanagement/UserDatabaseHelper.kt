@@ -2,8 +2,10 @@ package com.example.usermanagement
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import java.security.MessageDigest
 
 /**
  * 用户数据库帮助类 - 使用 SQLite 进行本地用户管理
@@ -25,6 +27,15 @@ class UserDatabaseHelper(context: Context) :
         private const val COL_ROLE = "role"
         private const val COL_IS_ACTIVE = "is_active"
         private const val COL_CREATED_AT = "created_at"
+
+        /**
+         * 对密码进行 SHA-256 哈希
+         */
+        fun hashPassword(password: String): String {
+            val digest = MessageDigest.getInstance("SHA-256")
+            val hashBytes = digest.digest(password.toByteArray(Charsets.UTF_8))
+            return hashBytes.joinToString("") { "%02x".format(it) }
+        }
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -43,10 +54,10 @@ class UserDatabaseHelper(context: Context) :
         """.trimIndent()
         db.execSQL(createTable)
 
-        // 插入默认管理员账户
+        // 插入默认管理员账户（密码已哈希存储）
         val adminValues = ContentValues().apply {
             put(COL_USERNAME, "admin")
-            put(COL_PASSWORD, "admin123")
+            put(COL_PASSWORD, hashPassword("admin123"))
             put(COL_DISPLAY_NAME, "系统管理员")
             put(COL_EMAIL, "admin@example.com")
             put(COL_PHONE, "13800000000")
@@ -63,15 +74,16 @@ class UserDatabaseHelper(context: Context) :
     }
 
     /**
-     * 验证登录
+     * 验证登录（对输入密码哈希后与数据库比较）
      */
     fun validateLogin(username: String, password: String): User? {
         val db = readableDatabase
+        val hashedPassword = hashPassword(password)
         val cursor = db.query(
             TABLE_USERS,
             null,
             "$COL_USERNAME = ? AND $COL_PASSWORD = ? AND $COL_IS_ACTIVE = 1",
-            arrayOf(username, password),
+            arrayOf(username, hashedPassword),
             null, null, null
         )
         var user: User? = null
@@ -118,7 +130,7 @@ class UserDatabaseHelper(context: Context) :
     }
 
     /**
-     * 添加用户
+     * 添加用户（密码会自动哈希）
      */
     fun addUser(user: User): Long {
         val db = writableDatabase
@@ -127,11 +139,28 @@ class UserDatabaseHelper(context: Context) :
     }
 
     /**
-     * 更新用户
+     * 更新用户（密码会自动哈希）
      */
     fun updateUser(user: User): Int {
         val db = writableDatabase
         val values = userToContentValues(user)
+        return db.update(TABLE_USERS, values, "$COL_ID = ?", arrayOf(user.id.toString()))
+    }
+
+    /**
+     * 更新用户（不更改密码）
+     */
+    fun updateUserWithoutPassword(user: User): Int {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COL_USERNAME, user.username)
+            put(COL_DISPLAY_NAME, user.displayName)
+            put(COL_EMAIL, user.email)
+            put(COL_PHONE, user.phone)
+            put(COL_ROLE, user.role)
+            put(COL_IS_ACTIVE, if (user.isActive) 1 else 0)
+            put(COL_CREATED_AT, user.createdAt)
+        }
         return db.update(TABLE_USERS, values, "$COL_ID = ?", arrayOf(user.id.toString()))
     }
 
@@ -187,7 +216,7 @@ class UserDatabaseHelper(context: Context) :
         return users
     }
 
-    private fun cursorToUser(cursor: android.database.Cursor): User {
+    private fun cursorToUser(cursor: Cursor): User {
         return User(
             id = cursor.getLong(cursor.getColumnIndexOrThrow(COL_ID)),
             username = cursor.getString(cursor.getColumnIndexOrThrow(COL_USERNAME)),
@@ -204,7 +233,7 @@ class UserDatabaseHelper(context: Context) :
     private fun userToContentValues(user: User): ContentValues {
         return ContentValues().apply {
             put(COL_USERNAME, user.username)
-            put(COL_PASSWORD, user.password)
+            put(COL_PASSWORD, hashPassword(user.password))
             put(COL_DISPLAY_NAME, user.displayName)
             put(COL_EMAIL, user.email)
             put(COL_PHONE, user.phone)

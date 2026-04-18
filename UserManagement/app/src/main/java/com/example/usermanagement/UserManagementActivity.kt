@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
@@ -29,10 +31,7 @@ class UserManagementActivity : AppCompatActivity() {
     private var currentUserRole: String = ""
     private var currentUserName: String = ""
 
-    companion object {
-        private const val REQUEST_ADD_USER = 1001
-        private const val REQUEST_EDIT_USER = 1002
-    }
+    private lateinit var activityResultLauncher: ActivityResultLauncher<Intent>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +42,14 @@ class UserManagementActivity : AppCompatActivity() {
         currentUserName = intent.getStringExtra("current_user_name") ?: ""
 
         dbHelper = UserDatabaseHelper(this)
+
+        activityResultLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == RESULT_OK) {
+                loadUsers()
+            }
+        }
 
         initViews()
         loadUsers()
@@ -68,8 +75,7 @@ class UserManagementActivity : AppCompatActivity() {
 
         btnAddUser.setOnClickListener {
             val intent = Intent(this, AddEditUserActivity::class.java)
-            @Suppress("DEPRECATION")
-            startActivityForResult(intent, REQUEST_ADD_USER)
+            activityResultLauncher.launch(intent)
         }
 
         btnLogout.setOnClickListener {
@@ -112,8 +118,7 @@ class UserManagementActivity : AppCompatActivity() {
         val intent = Intent(this, AddEditUserActivity::class.java).apply {
             putExtra("user_id", user.id)
         }
-        @Suppress("DEPRECATION")
-        startActivityForResult(intent, REQUEST_EDIT_USER)
+        activityResultLauncher.launch(intent)
     }
 
     private fun confirmDeleteUser(user: User) {
@@ -141,17 +146,9 @@ class UserManagementActivity : AppCompatActivity() {
         }
 
         val updatedUser = user.copy(isActive = !user.isActive)
-        dbHelper.updateUser(updatedUser)
+        dbHelper.updateUserWithoutPassword(updatedUser)
         val status = if (updatedUser.isActive) "启用" else "禁用"
         Toast.makeText(this, "用户已${status}", Toast.LENGTH_SHORT).show()
         loadUsers()
-    }
-
-    @Suppress("DEPRECATION")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode == RESULT_OK) {
-            loadUsers()
-        }
     }
 }
